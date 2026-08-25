@@ -1,9 +1,9 @@
 from typing import Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime
 from enum import Enum
 from rapidfuzz import process, fuzz, utils as fuzz_utils
-
+from uuid import UUID
 
 class JobCategory(Enum):
     SOFTWARE_ENGINEERING = "software_engineering"
@@ -95,6 +95,12 @@ class ExperienceLevel(Enum):
     EXECUTIVE = "executive"    # 12–20+ years
     OTHER = "other"            # Unspecified
 
+class SalaryFrequency(Enum):
+    MONTHLY = "monthly"
+    ANNUALLY = "annually"
+    CONTRACT = "contract"
+    HOURLY = "hourly"
+
 
 CATEGORY_MATCH_THRESHOLD = 70  # 0-100; tune once real data is eyeballed
 
@@ -159,11 +165,25 @@ class JobListing(NormalizedListing):
     # Enriched fields: not populated by scrapers or normalization. Filled in
     # later by a separate parsing/NLP stage (the `parser/` package) that
     # reads `description` and extracts structured signal from free text.
+    batch_id: UUID | None
     required_skills: list[str]
     preferred_skills: list[str]
     experience_level: Optional[ExperienceLevel]
     min_experience_years: Optional[int]
     education_requirements: Optional[list[str]]
+
+    @classmethod
+    def from_normalized(cls, normalized_item: NormalizedListing, batch_id) -> "JobListing":
+        normalized_fields = {f.name: getattr(normalized_item, f.name) for f in fields(NormalizedListing)}
+        return cls(
+            **normalized_fields,
+            batch_id=batch_id,
+            required_skills=[],
+            preferred_skills=[],
+            experience_level=None,
+            min_experience_years=None,
+            education_requirements=None,
+        )
 
 @dataclass
 class KnownFields:
@@ -173,6 +193,7 @@ class KnownFields:
     category: JobCategory | None = None
     experience_level: ExperienceLevel | None = None
     job_type: JobType | None = None
+    remote: bool | None = None
 
 @dataclass 
 class FreeTextFields:
@@ -180,6 +201,10 @@ class FreeTextFields:
     LLM can decide sutable values based on the content given.
     """
     location: str | None = None
+    remote: bool | None = None
+    avg_salary: float | None = None
+    salary_frequency: SalaryFrequency | None = None
+    salary_currency: str | None = None
     min_experience_years: int | None = None
     required_skills: list[str] = field(default_factory=list)
     preferred_skills: list[str] = field(default_factory=list)
@@ -197,7 +222,11 @@ class LLMExtractionOutput:
     category: JobCategory | None = None
     experience_level: ExperienceLevel | None = None
     job_type: JobType | None = None
+    remote: bool | None = None
     location: str | None = None
+    avg_salary: float | None = None
+    salary_frequency: SalaryFrequency | None = None
+    salary_currency: str | None = None
     min_experience_years: int | None = None
     required_skills: list[str] = field(default_factory=list)
     preferred_skills: list[str] = field(default_factory=list)
