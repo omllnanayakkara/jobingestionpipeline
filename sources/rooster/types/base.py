@@ -7,6 +7,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from sources.base import BaseResponse, SOURCE
 from bs4 import BeautifulSoup
+from models.job_listing import NormalizedListing, JobType, match_job_category
+
+ROOSTER_JOB_TYPE_MAP = {
+    "full-time": JobType.FULL_TIME,
+    "part-time": JobType.PART_TIME,
+    "contract": JobType.CONTRACT,
+    "internship": JobType.INTERNSHIP,
+}
 
 
 
@@ -59,7 +67,10 @@ class RoosterResponse(BaseResponse):
 
     @property
     def source_url(self) -> str:
-        return f"https://rooster.jobs/jobs/{self.external_id}"
+        source_url = os.environ.get("ROOSTER_COMPANY_BASE_URL")
+        if source_url is None:
+            raise ValueError("ROOSTER_COMPANY_BASE_URL is not defined")
+        return f"{source_url}/{self.external_id}"
 
     @property
     def avg_salary(self) -> Optional[float]:
@@ -74,6 +85,22 @@ class RoosterResponse(BaseResponse):
     @property
     def raw(self) -> str:
         return json.dumps(self.raw_data, default=str)
+
+    def to_normalized_listing(self) -> NormalizedListing:
+        listing = super().to_normalized_listing()
+        listing.company_url = self.company_url
+        listing.company_logo_url = self.company_logo_url
+        listing.job_type = ROOSTER_JOB_TYPE_MAP.get(self.job_type, JobType.OTHER)
+        listing.category = match_job_category(self.subclass)
+        listing.location = self.location
+        listing.remote = self.remote
+        listing.min_salary = self.min_salary
+        listing.max_salary = self.max_salary
+        listing.salary_currency = self.salary_currency
+        listing.salary_frequency = self.salary_frequency
+        listing.posted_at = self.created_at
+        listing.updated_at = self.updated_at
+        return listing
 
     @classmethod
     def from_api(cls, item: dict) -> "RoosterResponse":

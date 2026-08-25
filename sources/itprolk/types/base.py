@@ -1,8 +1,17 @@
+import os
 import json
 from typing import Optional
 from dataclasses import dataclass
 from datetime import datetime
 from sources.base import BaseResponse, SOURCE
+from models.job_listing import NormalizedListing, JobType, match_job_category
+
+ITPRO_JOB_TYPE_MAP = {
+    "FULL_TIME": JobType.FULL_TIME,
+    "PART_TIME": JobType.PART_TIME,
+    "CONTRACTOR": JobType.CONTRACT,
+    "INTERN": JobType.INTERNSHIP,
+}
 
 CATEGORY_MAP = {
     "18": "AI and Data",
@@ -52,7 +61,7 @@ class ItProlkResponse(BaseResponse):
     category_id: Optional[str]
     location_id: Optional[str]
     location: Optional[str]
-    website: Optional[str]
+    company_url: Optional[str]
     views_count: Optional[int]
     created_on: Optional[datetime]
     raw_data: dict
@@ -63,7 +72,10 @@ class ItProlkResponse(BaseResponse):
 
     @property
     def source_url(self) -> str:
-        return f"https://itpro.lk/job/{self.external_id}/"
+        source_base_url=os.environ.get("ITPROLK_JOB_DETAILS_URL")
+        if source_base_url is None:
+            raise ValueError("ITPROLK_JOB_DETAILS_URL is not defined")
+        return f"{source_base_url}/{self.external_id}/"
 
     @property
     def avg_salary(self) -> Optional[float]:
@@ -76,6 +88,16 @@ class ItProlkResponse(BaseResponse):
     @property
     def raw(self) -> str:
         return json.dumps(self.raw_data, default=str)
+
+    def to_normalized_listing(self) -> NormalizedListing:
+        listing = super().to_normalized_listing()
+        listing.summary = self.summary
+        listing.company_url = self.company_url
+        listing.job_type = ITPRO_JOB_TYPE_MAP.get(self.job_type, JobType.OTHER)
+        listing.category = match_job_category(self.category)
+        listing.location = self.location
+        listing.posted_at = self.created_on
+        return listing
 
     @classmethod
     def from_api(cls, item: dict) -> "ItProlkResponse":
@@ -93,7 +115,7 @@ class ItProlkResponse(BaseResponse):
             category_id=item.get("category_id"),
             location_id=location_id,
             location=LOCATION_MAP.get(location_id, location_id),
-            website=item.get("website"),
+            company_url=item.get("website"),
             views_count=int(views_count) if views_count is not None else None,
             created_on=_parse_datetime(item.get("created_on")),
             raw_data=item,

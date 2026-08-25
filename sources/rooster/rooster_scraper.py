@@ -43,3 +43,9 @@ if __name__=="__main__":
 
     listings=test_rooster.get_listings(payload)
     print(listings)
+
+    normalized = [item.to_normalized_listing() for item in listings]
+
+    print(normalized)
+
+    

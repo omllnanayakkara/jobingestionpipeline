@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from uuid import UUID
 from datetime import datetime
 from enum import Enum
+from models.job_listing import NormalizedListing
 
 class SOURCE(Enum):
     ROOSTER = "rooster"
@@ -45,6 +46,32 @@ class BaseResponse:
     def raw(self) -> str:
         ...
 
+    def to_normalized_listing(self) -> NormalizedListing:
+        return NormalizedListing(
+            external_id=self.external_id,
+            source=self.source,
+            source_url=self.source_url,
+            raw=self.raw,
+            title=self.title,
+            summary=None,
+            description=self.description,
+            company_name=self.company_name,
+            company_url=None,
+            company_logo_url=None,
+            job_type=None,
+            category=None,
+            location=None,
+            remote=None,
+            min_salary=None,
+            max_salary=None,
+            avg_salary=self.avg_salary,
+            salary_currency=None,
+            salary_frequency=None,
+            posted_at=None,
+            updated_at=None,
+            expires_at=None
+        )
+
 class BaseScraper(ABC):
     _list_url: str
     _details_url: Optional[str]
@@ -60,3 +87,5 @@ class BaseScraper(ABC):
     @abstractmethod
     def get_listings(self, payload:dict) -> Sequence[BaseResponse]:
         NotImplementedError()
+
+    

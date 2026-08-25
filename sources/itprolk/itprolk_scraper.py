@@ -1,10 +1,11 @@
+import os
 import requests
 from typing import Sequence
 from sources.base import BaseResponse, BaseScraper
 from sources.itprolk.types.base import ItProlkResponse
+from dotenv import load_dotenv
 
-url = "https://itpro.lk/api/v1/jobs"
-
+load_dotenv()
 
 class ItProlkScraper(BaseScraper):
     def __init__(self, list_url, details_url=None):
@@ -27,8 +28,12 @@ class ItProlkScraper(BaseScraper):
 
 if __name__ == "__main__":
     test_itprolk = ItProlkScraper(
-        list_url=url
+        list_url=os.environ.get("ITPROLK_LISTING_URL")
     )
 
     listings = test_itprolk.get_listings({"limit": 20})
     print(listings)
+
+    normalized = [item.to_normalized_listing() for item in listings]
+    
+    print(normalized)
