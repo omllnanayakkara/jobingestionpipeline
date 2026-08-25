@@ -9,6 +9,7 @@ from sources.itprolk.itprolk_scraper import ItProlkScraper
 def collect():
     rooster_listing_url = os.environ.get("ROOSTER_LISTING_URL")
     itprolk_listing_url = os.environ.get("ITPROLK_LISTING_URL")
+    max_batch_size = os.environ.get("MAX_BATCH_SIZE", 20)
     listings = []
 
     if rooster_listing_url is None:
@@ -16,6 +17,7 @@ def collect():
 
     if itprolk_listing_url is None:
         raise ValueError("ITPROLK_LISTING_URL is not defined")
+    
 
     scraper_list: Sequence[tuple] = [
         (
@@ -24,7 +26,7 @@ def collect():
                 "filters": {
                     "class": "Information & Communication Technology"
                 },
-                "limit": 20,
+                "limit": max_batch_size,
                 "page": 1,
                 "query": []
             }
@@ -32,7 +34,7 @@ def collect():
         (
             ItProlkScraper(list_url=itprolk_listing_url),
             {
-                "limit": 20
+                "limit": max_batch_size
             }
         )
     ]
