@@ -5,6 +5,7 @@ from enum import Enum
 from rapidfuzz import process, fuzz, utils as fuzz_utils
 from uuid import UUID
 
+
 class JobCategory(Enum):
     SOFTWARE_ENGINEERING = "software_engineering"
     WEB_DEVELOPMENT = "web_development"
@@ -165,7 +166,7 @@ class JobListing(NormalizedListing):
     # Enriched fields: not populated by scrapers or normalization. Filled in
     # later by a separate parsing/NLP stage (the `parser/` package) that
     # reads `description` and extracts structured signal from free text.
-    batch_id: UUID | None
+    run_id: UUID | None
     required_skills: list[str]
     preferred_skills: list[str]
     experience_level: Optional[ExperienceLevel]
@@ -173,11 +174,11 @@ class JobListing(NormalizedListing):
     education_requirements: Optional[list[str]]
 
     @classmethod
-    def from_normalized(cls, normalized_item: NormalizedListing, batch_id) -> "JobListing":
+    def from_normalized(cls, normalized_item: NormalizedListing, run_id) -> "JobListing":
         normalized_fields = {f.name: getattr(normalized_item, f.name) for f in fields(NormalizedListing)}
         return cls(
             **normalized_fields,
-            batch_id=batch_id,
+            run_id=run_id,
             required_skills=[],
             preferred_skills=[],
             experience_level=None,

@@ -10,7 +10,8 @@ from sources.itprolk.itprolk_scraper import ItProlkScraper
 def collect() -> Sequence[NormalizedListing]:
     rooster_listing_url = os.environ.get("ROOSTER_LISTING_URL")
     itprolk_listing_url = os.environ.get("ITPROLK_LISTING_URL")
-    max_batch_size = int(os.environ.get("MAX_BATCH_SIZE", 20))
+    max_batch_size = int(os.environ.get("MAX_BATCH_SIZE", 2))
+    print("max_batch_size", max_batch_size)
     listings = []
     print("collect started...")
     if rooster_listing_url is None:

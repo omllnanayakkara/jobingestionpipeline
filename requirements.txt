@@ -2,3 +2,6 @@ requests
 python-dotenv
 BeautifulSoup4
 rapidfuzz
+sqlalchemy
+alembic
+psycopg2-binary

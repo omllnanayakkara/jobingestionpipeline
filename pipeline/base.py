@@ -1,11 +1,13 @@
 import os
 import json
-import uuid
 from dataclasses import asdict
+import time
 
 from .collector import collect
 from .llm_extractor import extract
+from .store import store
 from models.job_listing import JobListing, KnownFields, FreeTextFields, LLMExtractionInput, JobCategory, ExperienceLevel, JobType
+from utils.run_config import start_run, update_run
 
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "output", "extraction_sample.json")
 
@@ -13,7 +15,8 @@ def coalesce(*args):
     return next((item for item in args if item is not None), None)
 
 if __name__ == "__main__":
-    batch_id = uuid.uuid4()
+    run_id = start_run()
+    start_clock = time.perf_counter()
 
     batch_items = collect()
     fianl_batch_items = []
@@ -28,7 +31,7 @@ if __name__ == "__main__":
             )
         )
 
-        job_listing_item = JobListing.from_normalized(item, batch_id)
+        job_listing_item = JobListing.from_normalized(item, run_id)
         job_listing_item.category = coalesce(item.category, enriched_item.category, JobCategory.OTHER)
         job_listing_item.experience_level = coalesce(enriched_item.experience_level, ExperienceLevel.OTHER)
         job_listing_item.job_type = coalesce(item.job_type, enriched_item.job_type, JobType.OTHER)
@@ -56,6 +59,12 @@ if __name__ == "__main__":
         json.dump(exportable_items, f, indent=2, default=str)
 
     print(f"\nWrote {len(fianl_batch_items)} results to {OUTPUT_PATH}")
+
+    store(fianl_batch_items)
+
+    end_clock = time.perf_counter()
+    execution_time = end_clock - start_clock
+    update_run(run_id, {"duration":execution_time})
 
     
 
