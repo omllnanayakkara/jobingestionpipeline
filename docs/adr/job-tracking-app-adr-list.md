@@ -590,3 +590,22 @@ Option 2. `build_company_model`/`build_job_listing_model` in `db/converters.py` 
 
 **Consequences**
 Both tables now handle re-running the pipeline safely: a listing seen before updates in place instead of crashing the batch on a duplicate-key error, and a company shared by several listings in one batch (or across runs) resolves to one row instead of many. Persistence code is Core-only end to end (`pg_insert` + explicit dicts), so there's no ORM/Core parameter-binding mismatch to reason about — the trade-off is that `db/converters.py` no longer returns typed `Company`/`JobListing` objects, just dicts, so a typo in a dict key (e.g. a renamed `db.models` column) won't be caught until the statement executes against Postgres rather than at construction time.
+
+---
+
+# ADR-0034: Bounded client-side retry (and eager model unload) around the local Ollama normalizer call, instead of relying on the Ollama service alone
+
+**Status:** Accepted
+
+**Context**
+`llm_handlers/local_llm_handler.py` calls a local Ollama-served model (`numind/nuextract3:q4_k_m`, run via `--flash-attn`, an 8GB prompt-cache limit, and up to 32 context checkpoints) to normalize scraped job listings. During batch pipeline runs, the request failed with `httpx.RemoteProtocolError: Server disconnected without sending a response`. `journalctl -u ollama` showed the actual cause: the kernel OOM killer repeatedly killed the `llama-server` subprocess mid-request (`ollama.service: The kernel OOM killer killed some processes in this unit`, twice within ~10 minutes), which drops the client's TCP connection with no HTTP response rather than returning an error the client can parse. The pipeline processes up to `MAX_BATCH_SIZE` (20) listings per run, each a separate `ollama.chat()` call, so a single OOM-triggered restart previously failed the entire batch.
+
+**Options considered**
+1. Do nothing at the application layer — treat this purely as an Ollama/infra sizing problem (lower `-c`/context size or `--cache-ram` in the systemd service config) and let the pipeline crash on the rare OOM restart until that's fixed.
+2. Add a bounded retry-with-backoff in `LocalLLMHandler.chat()` around the `ollama.chat()` call (catching `httpx.RemoteProtocolError`, `httpx.ConnectError`, `ollama.ResponseError`), and set `keep_alive=0` so the model unloads immediately after each response instead of staying resident in memory for a keep-alive window, reducing the standing memory pressure that batch processing puts on the service.
+
+**Decision**
+Option 2. `chat()` now retries up to `MAX_RETRIES` (3) times with linear backoff (`RETRY_BACKOFF_SECONDS * attempt`) on those specific exceptions, and `keep_alive` was changed from `"10m"` to `0`.
+
+**Consequences**
+A transient OOM-kill/restart of the local Ollama service no longer fails an entire batch run outright — the retry gives the service time to come back up and reprocess that single listing. Setting `keep_alive=0` trades per-call latency (the model has to reload rather than staying warm across the batch) for a smaller steady-state memory footprint during back-to-back calls, which was judged worth it given OOM kills were actively breaking runs. The underlying resource-sizing issue is not fixed by this change — if the model's context/cache configuration still doesn't fit available RAM, retries only mask repeated failures with added latency rather than eliminating them; lowering the Ollama service's context size or cache-RAM limit remains the real fix if OOM kills persist or worsen.

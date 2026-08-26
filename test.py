@@ -1,64 +1,92 @@
-from rapidfuzz import process, fuzz
+from paddleocr import PaddleOCR
+import ollama
+import json
+from models.job_listing import JobCategory, JobType
 
-strlist = [
-    "software_engineering",
-    "web_development",
-    "mobile_development",
-    "frontend_development",
-    "backend_development",
-    "full_stack_development",
-    "data_science",
-    "data_analytics",
-    "data_engineering",
-    "machine_learning",
-    "ai_engineering",
-    "devops",
-    "cloud_engineering",
-    "site_reliability",
-    "cybersecurity",
-    "networking",
-    "systems_administration",
-    "database",
-    "qa_testing",
-    "automation_testing",
-    "ui_ux_design",
-    "product_design",
-    "it_support",
-    "it_operations",
-    "solutions_architecture",
-    "software_architecture",
-    "product_management",
-    "project_management",
-    "business_analysis",
-    "technical_writing",
-    "erp_crm",
-    "embedded_systems",
-    "iot",
-    "blockchain_web3",
-    "game_development",
-    "it_management",
-    "other_it",
-]
+def ocr():
+    ocr = PaddleOCR(
+    use_doc_orientation_classify=False,
+    use_doc_unwarping=False,
+    use_textline_orientation=False
+)
 
-def find_best_match(
-    value: str,
-    choices: list[str],
-    threshold: float = 70,
-):
-    result = process.extractOne(
-        value,
-        choices,
-        scorer=fuzz.WRatio,
+    result = ocr.predict("image2.png")
+
+    for page in result:
+        for line in page["rec_texts"]:
+            print(line)
+
+
+
+# template = {
+#     "title": "verbatim-string",
+#     "date": "date-time",
+#     "total": "number",
+#     "payment_method": "verbatim-string",
+# }
+
+def vlm():
+    response = ollama.chat(
+        model="numind/nuextract3:q4_k_m",
+        messages = [
+            {"role": "mode", "content": "content"},
+            {
+                "role": "user",
+                "content": "",
+                "images": ["image2.png"],
+            },
+        ]
+        ,
+        think=False,
+        options={
+            "temperature": 0.2,
+            "top_k": 0.8
+        },
+        keep_alive=0
     )
+    print(response.message.content)
 
-    if result is None:
-        return "Other"
+def _enum_values(enum_cls) -> list[str]:
+    return [member.value for member in enum_cls]
 
-    match, score, _ = result
+template = {
+    "title": "verbatim-string",
+    "description": "string",
+    "job_type": _enum_values(JobType),
+    "category": _enum_values(JobCategory),
+    "posted_date": "date-time",
+    "location": "verbatim-string",
+    "company_name": "verbatim-string"
+}
 
-    if score < threshold:
-        return "Other"
+def vlm_templated():
+    response = ollama.chat(
+        model="numind/nuextract3:q4_k_m",
+        messages = [
+            {"role": "template", "content": json.dumps(template, indent=4)},
+            {
+                "role": "user",
+                "content": "",
+                "images": ["image2.png"],
+            },
+        ]
+        ,
+        think=False,
+        options={
+            "temperature": 0.2,
+            "top_k": 0.8
+        },
+        keep_alive=0
+    )
+    print(response.message.content)
 
-    return match
 
-print(find_best_match("cloud architect", strlist))
+
+print("OCR==================")
+ocr()
+
+print("VLM==================")
+vlm()
+
+print("VLM Templated==================")
+vlm_templated()

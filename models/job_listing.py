@@ -186,6 +186,19 @@ class JobListing(NormalizedListing):
             education_requirements=None,
         )
 
+    @classmethod
+    def to_document(cls) -> str:
+        return f"""
+        Titile: {cls.title},
+        Description: {cls.description},
+        Job type: {cls.job_type if cls.job_type is not None else JobType.OTHER},
+        Job Category: {cls.category if cls.category is not None else JobCategory.OTHER},
+        Company: {cls.company_name},
+        Location: {cls.location},
+        Posted at: {cls.posted_at}
+        """
+    
+
 @dataclass
 class KnownFields:
     """

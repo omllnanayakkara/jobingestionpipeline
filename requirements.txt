@@ -5,3 +5,6 @@ rapidfuzz
 sqlalchemy
 alembic
 psycopg2-binary
+pgvector
+paddleocr==3.2.0
+paddlepaddle==3.0.0

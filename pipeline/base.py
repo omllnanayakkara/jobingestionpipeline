@@ -18,11 +18,11 @@ if __name__ == "__main__":
     run_id = start_run()
     start_clock = time.perf_counter()
 
-    batch_items = collect()
+    batch_items = collect()                 # scrape from sources and deterministic normialization
     fianl_batch_items = []
         
     for item in batch_items:
-        enriched_item = extract(
+        enriched_item = extract(            # LLM-base enhancements
             LLMExtractionInput(
                 title=item.title,
                 description=item.description,
@@ -47,20 +47,7 @@ if __name__ == "__main__":
 
         fianl_batch_items.append(job_listing_item)
 
-    exportable_items = []
-    for item in fianl_batch_items:
-        item_dict = asdict(item)
-        item_dict.pop("raw", None)
-        item_dict.pop("description", None)
-        exportable_items.append(item_dict)
-
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    with open(OUTPUT_PATH, "w") as f:
-        json.dump(exportable_items, f, indent=2, default=str)
-
-    print(f"\nWrote {len(fianl_batch_items)} results to {OUTPUT_PATH}")
-
-    store(fianl_batch_items)
+    store(fianl_batch_items)                # store in database
 
     end_clock = time.perf_counter()
     execution_time = end_clock - start_clock

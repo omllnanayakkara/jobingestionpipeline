@@ -1,10 +1,12 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, Float, Boolean, Integer, DateTime, Text, Index
+from sqlalchemy import ForeignKey, String, Float, Boolean, Integer, DateTime, Text, Index, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+from pgvector.sqlalchemy import Vector
 
 from models.job_listing import JobCategory, JobType, ExperienceLevel, SalaryFrequency
 
@@ -81,6 +83,14 @@ class JobListing(Base):
     min_experience_years: Mapped[int | None] = mapped_column(Integer)
     education_requirements: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
 
+    # 384-d embeddings
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(384),
+        nullable=True
+    )
+
+    canonical_job_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
     record_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     record_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -96,4 +106,5 @@ class JobListing(Base):
         Index("ix_joblisting_job_type", "job_type"),
         Index("ix_joblisting_posted_at", "posted_at"),
         Index("idx_source_ext_id", "source", "external_id"),
+        UniqueConstraint("source", "external_id", name="uq_joblisting_source_external_id")
     )
