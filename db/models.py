@@ -6,8 +6,6 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from pgvector.sqlalchemy import Vector
-
 from models.job_listing import JobCategory, JobType, ExperienceLevel, SalaryFrequency
 
 
@@ -83,9 +81,10 @@ class JobListing(Base):
     min_experience_years: Mapped[int | None] = mapped_column(Integer)
     education_requirements: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
 
-    # 384-d embeddings
+    # Embeddings are kept as a generic PostgreSQL array so the app works without
+    # requiring the pgvector extension to be installed on the local database.
     embedding: Mapped[list[float] | None] = mapped_column(
-        Vector(384),
+        ARRAY(Float),
         nullable=True
     )
 

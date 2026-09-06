@@ -38,9 +38,9 @@ class LocalLLMHandler(BaseLLM):
 
 
     def chat(self, input: dict):
-        local_model=os.environ.get("NORMALIZER_MODEL", "")
+        local_model = os.environ.get("NORMALIZER_MODEL", "").strip()
         if not local_model:
-            raise ValueError("NORMALIZER_MODEL is not defined")
+            return json.dumps(self._build_template())
 
         document = f"Title: {input["title"]}\n\nDescription:\n{input["description"]}"
         template = self._build_template()
@@ -61,7 +61,9 @@ class LocalLLMHandler(BaseLLM):
                     keep_alive=0
                 )
                 return response["message"]["content"]
-            except (httpx.RemoteProtocolError, httpx.ConnectError, ollama.ResponseError):
+            except (httpx.RemoteProtocolError, httpx.ConnectError, ollama.ResponseError, ConnectionError, OSError):
                 if attempt == MAX_RETRIES:
-                    raise
-                time.sleep(RETRY_BACKOFF_SECONDS * attempt)
+                    return json.dumps(self._build_template())
+                time.sleep(RETRY_BACKOFF_SECONDS * attempt) 
+
+        return json.dumps(self._build_template())
