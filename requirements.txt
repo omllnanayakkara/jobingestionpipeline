@@ -6,5 +6,6 @@ sqlalchemy
 alembic
 psycopg2-binary
 pgvector
+azure-eventgrid
 paddleocr==3.2.0
 paddlepaddle==3.0.0
