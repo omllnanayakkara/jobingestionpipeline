@@ -8,6 +8,7 @@ from .llm_extractor import extract
 from .store import store
 from models.job_listing import JobListing, KnownFields, FreeTextFields, LLMExtractionInput, JobCategory, ExperienceLevel, JobType
 from utils.run_config import start_run, update_run
+from notifications.factory import get_notification_service
 
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "output", "extraction_sample.json")
 
@@ -48,6 +49,11 @@ if __name__ == "__main__":
         fianl_batch_items.append(job_listing_item)
 
     store(fianl_batch_items)                # store in database
+
+    notification_service, recipient = get_notification_service()
+    if notification_service and recipient:
+        for job in fianl_batch_items:
+            notification_service.publish_new_match(job, recipient)
 
     end_clock = time.perf_counter()
     execution_time = end_clock - start_clock
